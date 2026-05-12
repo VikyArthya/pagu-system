@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model KategoriPagu {
+  id           String       @id @default(cuid())
+  nama         String       // Nama pagu (Pos Relawan, Pos Galon, Pos BBM, dll)
+  anggaranDasar Decimal     @default(15000000) // Default: Rp15.000.000
+  warna        String?      // Warna untuk tampilan UI
+  ikon         String?      // Nama ikon dari lucide-react
+  urutan       Int          @default(0) // Urutan tampilan
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  transaksi    Transaksi[]
+
+  @@map("kategori_pagu")
+}
+
+model PeriodeAnggaran {
+  id           String       @id @default(cuid())
+  tanggalMulai DateTime     // Tanggal mulai periode
+  tanggalAkhir DateTime     // Tanggal akhir periode (durasi 14 hari)
+  isActive     Boolean      @default(false) // Menandai periode yang sedang aktif
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  transaksi    Transaksi[]
+
+  @@unique([tanggalMulai, tanggalAkhir])
+  @@index([isActive])
+  @@map("periode_anggaran")
+}
+
+model Transaksi {
+  id               String       @id @default(cuid())
+  tanggal          DateTime     // Tanggal transaksi
+  deskripsi        String       // Deskripsi/jenis transaksi
+  jumlah           Decimal      // Jumlah pembelian
+  kategoriId       String
+  periodeId        String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  kategori         KategoriPagu @relation(fields: [kategoriId], references: [id], onDelete: Cascade)
+  periode          PeriodeAnggaran @relation(fields: [periodeId], references: [id], onDelete: Cascade)
+
+  @@index([kategoriId])
+  @@index([periodeId])
+  @@index([tanggal])
+  @@map("transaksi")
+}
