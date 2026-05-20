@@ -67,13 +67,13 @@ export default async function RekapPage() {
                   acc[kategoriNama] = {
                     jumlah: 0,
                     count: 0,
-                    warna: transaksi.kategori.warna,
+                    warna: transaksi.kategori.warna || undefined,
                   }
                 }
                 acc[kategoriNama].jumlah += transaksi.jumlah
                 acc[kategoriNama].count += 1
                 return acc
-              }, {} as Record<string, { jumlah: number; count: number; warna?: string }>)
+              }, {} as Record<string, { jumlah: number; count: number; warna?: string | null }>)
 
               const totalPeriod = period.transaksi.reduce(
                 (sum, t) => sum + t.jumlah,
@@ -130,7 +130,7 @@ export default async function RekapPage() {
                                     <div
                                       className="w-3 h-3 rounded-full"
                                       style={{
-                                        backgroundColor: transaksi.kategori.warna,
+                                        backgroundColor: transaksi.kategori.warna || '#3b82f6',
                                       }}
                                     />
                                     {transaksi.kategori.nama}
@@ -164,7 +164,7 @@ export default async function RekapPage() {
                               <div className="flex items-center gap-2">
                                 <div
                                   className="w-3 h-3 rounded-full"
-                                  style={{ backgroundColor: data.warna }}
+                                  style={{ backgroundColor: data.warna || '#3b82f6' }}
                                 />
                                 <span className="text-sm">{nama}</span>
                                 <span className="text-xs text-muted-foreground">

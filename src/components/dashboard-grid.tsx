@@ -8,8 +8,8 @@ interface KategoriData {
   id: string
   nama: string
   anggaranDasar: number
-  warna?: string
-  ikon?: string
+  warna?: string | null
+  ikon?: string | null
   totalTransaksi: number
   sisaSaldo: number
   persentaseTerpakai: number
@@ -30,7 +30,7 @@ const iconMap = {
 }
 
 export function DashboardGrid({ kategori }: DashboardGridProps) {
-  const getIcon = (iconName?: string) => {
+  const getIcon = (iconName?: string | null) => {
     if (!iconName) return Package
     return iconMap[iconName as keyof typeof iconMap] || Package
   }
@@ -49,7 +49,7 @@ export function DashboardGrid({ kategori }: DashboardGridProps) {
               isLowBalance ? 'border-destructive' : ''
             }`}
             style={{
-              borderTopColor: item.warna,
+              borderTopColor: item.warna || '#3b82f6',
               borderTopWidth: '4px',
             }}
           >
@@ -60,7 +60,7 @@ export function DashboardGrid({ kategori }: DashboardGridProps) {
                     className="p-2 rounded-lg"
                     style={{ backgroundColor: item.warna ? `${item.warna}20` : undefined }}
                   >
-                    <Icon className="h-5 w-5" style={{ color: item.warna }} />
+                    <Icon className="h-5 w-5" style={{ color: item.warna || '#3b82f6' }} />
                   </div>
                   {item.nama}
                 </CardTitle>
