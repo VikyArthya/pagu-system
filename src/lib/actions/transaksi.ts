@@ -3,6 +3,45 @@
 import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 
+function mapTransaksiPlain(t: any) {
+  if (!t) return null
+  return {
+    id: t.id,
+    tanggal: t.tanggal instanceof Date ? t.tanggal.toISOString() : (t.tanggal ? new Date(t.tanggal).toISOString() : null),
+    deskripsi: t.deskripsi,
+    jumlah: Number(t.jumlah),
+    kategoriId: t.kategoriId,
+    periodeId: t.periodeId,
+    createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : (t.createdAt ? new Date(t.createdAt).toISOString() : null),
+    updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : (t.updatedAt ? new Date(t.updatedAt).toISOString() : null),
+    ...(t.kategori ? {
+      kategori: {
+        id: t.kategori.id,
+        nama: t.kategori.nama,
+        anggaranDasar: Number(t.kategori.anggaranDasar),
+        warna: t.kategori.warna,
+        ikon: t.kategori.ikon,
+        urutan: t.kategori.urutan,
+        createdAt: t.kategori.createdAt instanceof Date ? t.kategori.createdAt.toISOString() : (t.kategori.createdAt ? new Date(t.kategori.createdAt).toISOString() : null),
+        updatedAt: t.kategori.updatedAt instanceof Date ? t.kategori.updatedAt.toISOString() : (t.kategori.updatedAt ? new Date(t.kategori.updatedAt).toISOString() : null),
+      }
+    } : {}),
+    ...(t.periode ? {
+      periode: {
+        id: t.periode.id,
+        nama: t.periode.nama,
+        tanggalMulai: t.periode.tanggalMulai instanceof Date ? t.periode.tanggalMulai.toISOString() : (t.periode.tanggalMulai ? new Date(t.periode.tanggalMulai).toISOString() : null),
+        tanggalAkhir: t.periode.tanggalAkhir instanceof Date ? t.periode.tanggalAkhir.toISOString() : (t.periode.tanggalAkhir ? new Date(t.periode.tanggalAkhir).toISOString() : null),
+        isActive: t.periode.isActive,
+        templateType: t.periode.templateType,
+        notes: t.periode.notes,
+        createdAt: t.periode.createdAt instanceof Date ? t.periode.createdAt.toISOString() : (t.periode.createdAt ? new Date(t.periode.createdAt).toISOString() : null),
+        updatedAt: t.periode.updatedAt instanceof Date ? t.periode.updatedAt.toISOString() : (t.periode.updatedAt ? new Date(t.periode.updatedAt).toISOString() : null),
+      }
+    } : {}),
+  }
+}
+
 export async function getTransaksiByPeriode(periodeId: string) {
   try {
     const transaksi = await prisma.transaksi.findMany({
@@ -14,14 +53,7 @@ export async function getTransaksiByPeriode(periodeId: string) {
     })
     return {
       success: true,
-      data: transaksi.map((t) => ({
-        ...t,
-        jumlah: Number(t.jumlah),
-        kategori: {
-          ...t.kategori,
-          anggaranDasar: Number(t.kategori.anggaranDasar),
-        },
-      })),
+      data: transaksi.map(mapTransaksiPlain),
     }
   } catch (error) {
     console.error('Error fetching transaksi:', error)
@@ -43,10 +75,7 @@ export async function getTransaksiByKategori(
     })
     return {
       success: true,
-      data: transaksi.map((t) => ({
-        ...t,
-        jumlah: Number(t.jumlah),
-      })),
+      data: transaksi.map(mapTransaksiPlain),
     }
   } catch (error) {
     console.error('Error fetching transaksi:', error)
@@ -160,19 +189,11 @@ export async function createTransaksi(data: {
         periode: true,
       },
     })
-
     revalidatePath('/')
     revalidatePath('/rekap')
     return {
       success: true,
-      data: {
-        ...transaksi,
-        jumlah: Number(transaksi.jumlah),
-        kategori: {
-          ...transaksi.kategori,
-          anggaranDasar: Number(transaksi.kategori.anggaranDasar),
-        },
-      },
+      data: mapTransaksiPlain(transaksi),
     }
   } catch (error) {
     console.error('Error creating transaksi:', error)
@@ -238,14 +259,7 @@ export async function updateTransaksi(
     revalidatePath('/rekap')
     return {
       success: true,
-      data: {
-        ...transaksi,
-        jumlah: Number(transaksi.jumlah),
-        kategori: {
-          ...transaksi.kategori,
-          anggaranDasar: Number(transaksi.kategori.anggaranDasar),
-        },
-      },
+      data: mapTransaksiPlain(transaksi),
     }
   } catch (error) {
     console.error('Error updating transaksi:', error)

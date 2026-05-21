@@ -11,8 +11,14 @@ export async function getKategoriPagu() {
     return {
       success: true,
       data: kategori.map((k) => ({
-        ...k,
+        id: k.id,
+        nama: k.nama,
         anggaranDasar: Number(k.anggaranDasar),
+        warna: k.warna,
+        ikon: k.ikon,
+        urutan: k.urutan,
+        createdAt: k.createdAt,
+        updatedAt: k.updatedAt,
       })),
     }
   } catch (error) {
@@ -31,7 +37,16 @@ export async function getKategoriById(id: string) {
     }
     return {
       success: true,
-      data: { ...kategori, anggaranDasar: Number(kategori.anggaranDasar) },
+      data: {
+        id: kategori.id,
+        nama: kategori.nama,
+        anggaranDasar: Number(kategori.anggaranDasar),
+        warna: kategori.warna,
+        ikon: kategori.ikon,
+        urutan: kategori.urutan,
+        createdAt: kategori.createdAt,
+        updatedAt: kategori.updatedAt,
+      },
     }
   } catch (error) {
     console.error('Error fetching kategori:', error)
@@ -60,7 +75,16 @@ export async function createKategori(data: {
     revalidatePath('/rekap')
     return {
       success: true,
-      data: { ...kategori, anggaranDasar: Number(kategori.anggaranDasar) },
+      data: {
+        id: kategori.id,
+        nama: kategori.nama,
+        anggaranDasar: Number(kategori.anggaranDasar),
+        warna: kategori.warna,
+        ikon: kategori.ikon,
+        urutan: kategori.urutan,
+        createdAt: kategori.createdAt,
+        updatedAt: kategori.updatedAt,
+      },
     }
   } catch (error) {
     console.error('Error creating kategori:', error)
@@ -93,7 +117,16 @@ export async function updateKategori(
     revalidatePath('/rekap')
     return {
       success: true,
-      data: { ...kategori, anggaranDasar: Number(kategori.anggaranDasar) },
+      data: {
+        id: kategori.id,
+        nama: kategori.nama,
+        anggaranDasar: Number(kategori.anggaranDasar),
+        warna: kategori.warna,
+        ikon: kategori.ikon,
+        urutan: kategori.urutan,
+        createdAt: kategori.createdAt,
+        updatedAt: kategori.updatedAt,
+      },
     }
   } catch (error) {
     console.error('Error updating kategori:', error)

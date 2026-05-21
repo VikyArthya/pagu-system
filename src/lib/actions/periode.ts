@@ -96,7 +96,27 @@ export async function getPeriodeAktif() {
 
     return {
       success: true,
-      data: periode,
+      data: periode ? {
+        id: periode.id,
+        nama: periode.nama,
+        tanggalMulai: periode.tanggalMulai,
+        tanggalAkhir: periode.tanggalAkhir,
+        isActive: periode.isActive,
+        templateType: periode.templateType,
+        notes: periode.notes,
+        createdAt: periode.createdAt,
+        updatedAt: periode.updatedAt,
+        transaksi: (periode.transaksi || []).map((t) => ({
+          id: t.id,
+          tanggal: t.tanggal,
+          deskripsi: t.deskripsi,
+          jumlah: Number(t.jumlah),
+          kategoriId: t.kategoriId,
+          periodeId: t.periodeId,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
+        })),
+      } : null,
     }
   } catch (error) {
     console.error('Error fetching periode aktif:', error)
@@ -119,13 +139,33 @@ export async function getAllPeriode() {
     return {
       success: true,
       data: periode.map((p) => ({
-        ...p,
+        id: p.id,
+        nama: p.nama,
+        tanggalMulai: p.tanggalMulai,
+        tanggalAkhir: p.tanggalAkhir,
+        isActive: p.isActive,
+        templateType: p.templateType,
+        notes: p.notes,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
         transaksi: p.transaksi.map((t) => ({
-          ...t,
+          id: t.id,
+          tanggal: t.tanggal,
+          deskripsi: t.deskripsi,
           jumlah: Number(t.jumlah),
+          kategoriId: t.kategoriId,
+          periodeId: t.periodeId,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
           kategori: t.kategori ? {
-            ...t.kategori,
+            id: t.kategori.id,
+            nama: t.kategori.nama,
             anggaranDasar: Number(t.kategori.anggaranDasar),
+            warna: t.kategori.warna,
+            ikon: t.kategori.ikon,
+            urutan: t.kategori.urutan,
+            createdAt: t.kategori.createdAt,
+            updatedAt: t.kategori.updatedAt,
           } : null,
         })),
       })),
@@ -159,13 +199,33 @@ export async function getPeriodeById(id: string) {
     return {
       success: true,
       data: {
-        ...periode,
+        id: periode.id,
+        nama: periode.nama,
+        tanggalMulai: periode.tanggalMulai,
+        tanggalAkhir: periode.tanggalAkhir,
+        isActive: periode.isActive,
+        templateType: periode.templateType,
+        notes: periode.notes,
+        createdAt: periode.createdAt,
+        updatedAt: periode.updatedAt,
         transaksi: periode.transaksi.map((t) => ({
-          ...t,
+          id: t.id,
+          tanggal: t.tanggal,
+          deskripsi: t.deskripsi,
           jumlah: Number(t.jumlah),
+          kategoriId: t.kategoriId,
+          periodeId: t.periodeId,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt,
           kategori: t.kategori ? {
-            ...t.kategori,
+            id: t.kategori.id,
+            nama: t.kategori.nama,
             anggaranDasar: Number(t.kategori.anggaranDasar),
+            warna: t.kategori.warna,
+            ikon: t.kategori.ikon,
+            urutan: t.kategori.urutan,
+            createdAt: t.kategori.createdAt,
+            updatedAt: t.kategori.updatedAt,
           } : null,
         })),
       },
@@ -186,7 +246,20 @@ export async function createPeriode(data: { tanggalMulai: Date; tanggalAkhir: Da
     })
     revalidatePath('/')
     revalidatePath('/rekap')
-    return { success: true, data: periode }
+    return {
+      success: true,
+      data: {
+        id: periode.id,
+        nama: periode.nama,
+        tanggalMulai: periode.tanggalMulai,
+        tanggalAkhir: periode.tanggalAkhir,
+        isActive: periode.isActive,
+        templateType: periode.templateType,
+        notes: periode.notes,
+        createdAt: periode.createdAt,
+        updatedAt: periode.updatedAt,
+      },
+    }
   } catch (error) {
     console.error('Error creating periode:', error)
     return { success: false, error: 'Gagal membuat periode baru' }
@@ -253,7 +326,20 @@ export async function createPeriodeWithTemplate(data: {
     revalidatePath('/rekap')
     revalidatePath('/periode')
 
-    return { success: true, data: periode }
+    return {
+      success: true,
+      data: {
+        id: periode.id,
+        nama: periode.nama,
+        tanggalMulai: periode.tanggalMulai,
+        tanggalAkhir: periode.tanggalAkhir,
+        isActive: periode.isActive,
+        templateType: periode.templateType,
+        notes: periode.notes,
+        createdAt: periode.createdAt,
+        updatedAt: periode.updatedAt,
+      },
+    }
   } catch (error) {
     console.error('Error creating periode with template:', error)
     return { success: false, error: 'Gagal membuat periode baru' }
@@ -281,7 +367,20 @@ export async function updatePeriode(
     revalidatePath('/periode')
     revalidatePath(`/periode/${id}`)
 
-    return { success: true, data: periode }
+    return {
+      success: true,
+      data: {
+        id: periode.id,
+        nama: periode.nama,
+        tanggalMulai: periode.tanggalMulai,
+        tanggalAkhir: periode.tanggalAkhir,
+        isActive: periode.isActive,
+        templateType: periode.templateType,
+        notes: periode.notes,
+        createdAt: periode.createdAt,
+        updatedAt: periode.updatedAt,
+      },
+    }
   } catch (error) {
     console.error('Error updating periode:', error)
     return { success: false, error: 'Gagal mengupdate periode' }
@@ -337,7 +436,16 @@ export async function comparePeriode(period1Id: string, period2Id: string) {
       const trend: 'up' | 'down' | 'stable' = difference > 0 ? 'up' : difference < 0 ? 'down' : 'stable'
 
       return {
-        kategori: k,
+        kategori: {
+          id: k.id,
+          nama: k.nama,
+          anggaranDasar: Number(k.anggaranDasar),
+          warna: k.warna,
+          ikon: k.ikon,
+          urutan: k.urutan,
+          createdAt: k.createdAt,
+          updatedAt: k.updatedAt,
+        },
         period1Amount: amount1,
         period2Amount: amount2,
         difference,
@@ -402,7 +510,15 @@ export async function getPeriodeSummaries() {
       })
 
       return {
-        ...p,
+        id: p.id,
+        nama: p.nama,
+        tanggalMulai: p.tanggalMulai,
+        tanggalAkhir: p.tanggalAkhir,
+        isActive: p.isActive,
+        templateType: p.templateType,
+        notes: p.notes,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
         totalAmount,
         transactionCount,
         categorySpending: Object.values(categorySpending),
