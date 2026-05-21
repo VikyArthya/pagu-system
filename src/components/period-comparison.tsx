@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { TrendingUp, TrendingDown, Minus, ArrowRight, Calendar } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, ArrowRight, Calendar, AlertCircle } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { comparePeriode, getAllPeriode } from '@/lib/actions/periode'
 
@@ -51,9 +51,10 @@ export function PeriodComparison({
         if (periodsResult.success && periodsResult.data) {
           setAllPeriods(periodsResult.data)
 
+          // Set default periods if not specified and we have at least 2
           if (!period1Id && !period2Id && periodsResult.data.length >= 2) {
-            setSelectedPeriod1(periodsResult.data[1].id)
-            setSelectedPeriod2(periodsResult.data[0].id)
+            setSelectedPeriod1(periodsResult.data[0].id) // Most recent
+            setSelectedPeriod2(periodsResult.data[1].id) // Older
           }
         }
       } catch (error) {
@@ -81,19 +82,63 @@ export function PeriodComparison({
         } finally {
           setLoading(false)
         }
+      } else {
+        setComparisonData(null)
       }
     }
 
     loadComparison()
   }, [selectedPeriod1, selectedPeriod2, onPeriodsChange])
 
-  if (loading) {
+  // Calculation utilities
+  const getClientSummary = () => {
+    if (!comparisonData) return null
+    const recentTotal = comparisonData.summary.period1Total
+    const olderTotal = comparisonData.summary.period2Total
+    const difference = recentTotal - olderTotal
+    const percentChange = olderTotal > 0 ? (difference / olderTotal) * 100 : 0
+    const trend: 'up' | 'down' | 'stable' = difference > 0 ? 'up' : difference < 0 ? 'down' : 'stable'
+
+    return {
+      recentTotal,
+      olderTotal,
+      difference: Math.abs(difference),
+      percentChange,
+      trend,
+    }
+  }
+
+  const clientSummary = getClientSummary()
+
+  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
+    switch (trend) {
+      case 'up':
+        return <TrendingUp className="h-4 w-4 text-rose-600" />
+      case 'down':
+        return <TrendingDown className="h-4 w-4 text-emerald-600" />
+      default:
+        return <Minus className="h-4 w-4 text-slate-400" />
+    }
+  }
+
+  const getTrendColor = (trend: 'up' | 'down' | 'stable') => {
+    switch (trend) {
+      case 'up':
+        return 'text-rose-600'
+      case 'down':
+        return 'text-emerald-600'
+      default:
+        return 'text-slate-500'
+    }
+  }
+
+  if (loading && allPeriods.length === 0) {
     return (
       <div className="space-y-6">
         {[1, 2, 3].map((i) => (
-          <Card key={i} className="animate-pulse">
+          <Card key={i} className="border border-slate-200 bg-white rounded-2xl animate-pulse shadow-sm">
             <CardContent className="pt-6">
-              <div className="h-32 bg-muted rounded" />
+              <div className="h-28 bg-slate-100 rounded-xl" />
             </CardContent>
           </Card>
         ))}
@@ -101,290 +146,385 @@ export function PeriodComparison({
     )
   }
 
-  if (!comparisonData || !selectedPeriod1 || !selectedPeriod2) {
-    return (
-      <Card className="border-2">
-        <CardContent className="py-12 text-center text-muted-foreground">
-          <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p className="font-medium">Select two periods to compare</p>
-          <p className="text-sm mt-1">Choose different periods from the dropdowns below</p>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
-    switch (trend) {
-      case 'up':
-        return <TrendingUp className="h-4 w-4 text-destructive" />
-      case 'down':
-        return <TrendingDown className="h-4 w-4 text-green-600" />
-      default:
-        return <Minus className="h-4 w-4 text-muted-foreground" />
-    }
-  }
-
-  const getTrendColor = (trend: 'up' | 'down' | 'stable') => {
-    switch (trend) {
-      case 'up':
-        return 'text-destructive'
-      case 'down':
-        return 'text-green-600'
-      default:
-        return 'text-muted-foreground'
-    }
-  }
-
   return (
     <div className="space-y-8">
       {/* Period Selection */}
-      <Card className="border-2">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Select Periods to Compare
+      <Card className="border border-slate-200 bg-white rounded-2xl shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500/40 via-purple-500/40 to-pink-500/40" />
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2.5 text-base font-bold text-slate-900 uppercase tracking-wider">
+            <Calendar className="h-5 w-5 text-indigo-600" />
+            Pilih Periode untuk Dibandingkan
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="text-sm font-semibold mb-3 block">Period 1 (Recent)</label>
-              <select
-                className="w-full p-3 border-2 rounded-lg focus:border-primary focus:outline-none transition-colors"
-                value={selectedPeriod1}
-                onChange={(e) => setSelectedPeriod1(e.target.value)}
-              >
-                <option value="">Select period...</option>
-                {allPeriods.map((period) => (
-                  <option key={period.id} value={period.id}>
-                    {period.nama || 'Unnamed'} ({formatDate(period.tanggalMulai)} - {formatDate(period.tanggalAkhir)})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="text-sm font-semibold mb-3 block">Period 2 (Older)</label>
-              <select
-                className="w-full p-3 border-2 rounded-lg focus:border-primary focus:outline-none transition-colors"
-                value={selectedPeriod2}
-                onChange={(e) => setSelectedPeriod2(e.target.value)}
-              >
-                <option value="">Select period...</option>
-                {allPeriods.map((period) => (
-                  <option key={period.id} value={period.id}>
-                    {period.nama || 'Unnamed'} ({formatDate(period.tanggalMulai)} - {formatDate(period.tanggalAkhir)})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Summary Comparison */}
-      <Card className="border-2 bg-gradient-to-br from-card to-muted/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ArrowRight className="h-5 w-5" />
-            Overall Comparison
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-2 font-medium">
-                {comparisonData.period1.nama || 'Period 1'}
-              </div>
-              <div className="text-3xl font-bold mb-1">
-                {formatCurrency(comparisonData.summary.period1Total)}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {comparisonData.period1.transaksi?.length || 0} transactions
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-2 font-medium">Difference</div>
-              <div className={`text-3xl font-bold mb-1 ${getTrendColor(
-                comparisonData.summary.totalDifference > 0 ? 'up' :
-                comparisonData.summary.totalDifference < 0 ? 'down' : 'stable'
-              )}`}>
-                {formatCurrency(Math.abs(comparisonData.summary.totalDifference))}
-              </div>
-              <div className={`text-sm font-semibold ${getTrendColor(
-                comparisonData.summary.totalDifference > 0 ? 'up' :
-                comparisonData.summary.totalDifference < 0 ? 'down' : 'stable'
-              )}`}>
-                {comparisonData.summary.totalDifference > 0 ? '+' : ''}
-                {comparisonData.summary.totalPercentChange.toFixed(1)}%
-              </div>
-            </div>
-
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-2 font-medium">
-                {comparisonData.period2.nama || 'Period 2'}
-              </div>
-              <div className="text-3xl font-bold mb-1">
-                {formatCurrency(comparisonData.summary.period2Total)}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {comparisonData.period2.transaksi?.length || 0} transactions
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Category Comparison */}
-      <div>
-        <h3 className="text-xl font-bold mb-4 tracking-tight">Category-by-Category Comparison</h3>
-        <div className="grid gap-4 md:grid-cols-2">
-          {comparisonData.comparison.map((item) => (
-            <Card key={item.kategori.id} className="border-2 hover:border-primary/50 transition-colors">
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  {/* Category Header */}
-                  <div className="flex items-center justify-between border-b pb-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-4 h-4 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: item.kategori.warna || '#3b82f6' }}
-                      />
-                      <span className="font-bold text-lg">{item.kategori.nama}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getTrendIcon(item.trend)}
-                      <span className={`text-sm font-bold ${getTrendColor(item.trend)}`}>
-                        {item.trend === 'up' ? '+' : item.trend === 'down' ? '' : ''}
-                        {item.percentChange.toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Amounts */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <div className="text-xs text-muted-foreground mb-1 font-medium">
-                        {comparisonData.period1.nama || 'Period 1'}
-                      </div>
-                      <div className="font-bold text-base">{formatCurrency(item.period1Amount)}</div>
-                    </div>
-
-                    <div className="text-center">
-                      <div className="text-xs text-muted-foreground mb-1 font-medium">Difference</div>
-                      <div className={`font-bold text-base ${getTrendColor(item.trend)}`}>
-                        {item.trend === 'up' ? '+' : item.trend === 'down' ? '' : ''}
-                        {formatCurrency(Math.abs(item.difference))}
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <div className="text-xs text-muted-foreground mb-1 font-medium">
-                        {comparisonData.period2.nama || 'Period 2'}
-                      </div>
-                      <div className="font-bold text-base">{formatCurrency(item.period2Amount)}</div>
-                    </div>
-                  </div>
-
-                  {/* Visual Bar */}
-                  {Math.max(item.period1Amount, item.period2Amount) > 0 && (
-                    <div className="relative h-3 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className="absolute left-0 top-0 h-full bg-blue-500 transition-all duration-500"
-                        style={{
-                          width: `${Math.min(
-                            (item.period1Amount / Math.max(item.period1Amount, item.period2Amount)) * 100,
-                            100
-                          )}%`,
-                        }}
-                      />
-                      <div
-                        className="absolute right-0 top-0 h-full bg-green-500 transition-all duration-500"
-                        style={{
-                          width: `${Math.min(
-                            (item.period2Amount / Math.max(item.period1Amount, item.period2Amount)) * 100,
-                            100
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                  )}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                Periode 1 (Lebih Baru)
+              </label>
+              <div className="relative">
+                <select
+                  className="w-full p-3.5 pr-10 border border-slate-200 rounded-xl bg-white text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 focus:outline-none transition-all duration-300 font-medium text-sm appearance-none cursor-pointer shadow-sm hover:border-slate-300"
+                  value={selectedPeriod1 || ''}
+                  onChange={(e) => setSelectedPeriod1(e.target.value || undefined)}
+                >
+                  <option value="" className="bg-white text-slate-400">Pilih periode...</option>
+                  {allPeriods.map((period) => (
+                    <option key={period.id} value={period.id} className="bg-white text-slate-800">
+                      {period.nama || 'Unnamed'} ({formatDate(period.tanggalMulai)} - {formatDate(period.tanggalAkhir)})
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                Periode 2 (Lebih Lama)
+              </label>
+              <div className="relative">
+                <select
+                  className="w-full p-3.5 pr-10 border border-slate-200 rounded-xl bg-white text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50 focus:outline-none transition-all duration-300 font-medium text-sm appearance-none cursor-pointer shadow-sm hover:border-slate-300"
+                  value={selectedPeriod2 || ''}
+                  onChange={(e) => setSelectedPeriod2(e.target.value || undefined)}
+                >
+                  <option value="" className="bg-white text-slate-400">Pilih periode...</option>
+                  {allPeriods.map((period) => (
+                    <option key={period.id} value={period.id} className="bg-white text-slate-800">
+                      {period.nama || 'Unnamed'} ({formatDate(period.tanggalMulai)} - {formatDate(period.tanggalAkhir)})
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Loading state for comparison results */}
+      {loading && (
+        <div className="space-y-6">
+          <Card className="border border-slate-200 bg-white rounded-2xl animate-pulse shadow-sm">
+            <CardContent className="h-32" />
+          </Card>
+          <div className="grid gap-4 md:grid-cols-2">
+            {[1, 2].map((i) => (
+              <Card key={i} className="border border-slate-200 bg-white rounded-2xl animate-pulse shadow-sm">
+                <CardContent className="h-40" />
+              </Card>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Key Insights */}
-      <Card className="border-2 bg-gradient-to-br from-card to-primary/5">
-        <CardHeader>
-          <CardTitle>Key Insights</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {comparisonData.summary.totalDifference > 0 && (
-              <div className="flex items-start gap-4 p-4 bg-destructive/10 rounded-lg border border-destructive/20">
-                <TrendingUp className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
-                <div>
-                  <div className="font-bold text-base">Spending Increased</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {comparisonData.period1.nama || 'Period 1'} spent <strong className="text-destructive">{formatCurrency(comparisonData.summary.totalDifference)}</strong> more
-                    than {comparisonData.period2.nama || 'Period 2'}
+      {/* Empty / Not Selected State */}
+      {!loading && (!comparisonData || !selectedPeriod1 || !selectedPeriod2) && (
+        <Card className="border border-slate-200 bg-white rounded-2xl shadow-sm">
+          <CardContent className="py-16 text-center text-slate-500">
+            <Calendar className="h-16 w-16 mx-auto mb-4 text-slate-300 animate-bounce" />
+            <h3 className="text-lg font-bold text-slate-800 mb-1">Pilih Dua Periode Berbeda</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              Silakan pilih dua periode di atas untuk melihat perbandingan pengeluaran, persentase perubahan, serta analisis kategori terperinci.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Comparison Content */}
+      {!loading && comparisonData && clientSummary && (
+        <>
+          {/* Summary Comparison */}
+          <Card className="border border-slate-200 bg-white rounded-2xl shadow-sm overflow-hidden relative group">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+            <CardHeader className="pb-2 border-b border-slate-100 bg-slate-50/50">
+              <CardTitle className="flex items-center gap-2.5 text-base font-bold text-slate-900 uppercase tracking-wider">
+                <ArrowRight className="h-5 w-5 text-indigo-600" />
+                Perbandingan Keseluruhan
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+                {/* Period 1 (Recent) */}
+                <div className="text-center md:text-left space-y-1.5 md:pl-6">
+                  <div className="text-xs font-bold text-indigo-600 uppercase tracking-widest">
+                    {comparisonData.period1.nama || 'Periode 1'}
+                  </div>
+                  <div className="text-3xl font-black text-slate-900 tracking-tight">
+                    {formatCurrency(clientSummary.recentTotal)}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    {comparisonData.period1.transaksi?.length || 0} Transaksi Tercatat
+                  </div>
+                </div>
+
+                {/* Delta / Comparison Info */}
+                <div className="text-center py-4 md:py-0 border-y md:border-y-0 md:border-x border-slate-100 space-y-2">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    Selisih Pengeluaran
+                  </div>
+                  <div className={`text-3xl font-black tracking-tight ${getTrendColor(clientSummary.trend)}`}>
+                    {formatCurrency(clientSummary.difference)}
+                  </div>
+                  <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                    clientSummary.trend === 'up' 
+                      ? 'bg-rose-50 border border-rose-100 text-rose-700' 
+                      : clientSummary.trend === 'down'
+                      ? 'bg-emerald-50 border border-emerald-100 text-emerald-700'
+                      : 'bg-slate-100 border border-slate-200 text-slate-700'
+                  }`}>
+                    {getTrendIcon(clientSummary.trend)}
+                    <span>
+                      {clientSummary.trend === 'up' ? '+' : clientSummary.trend === 'down' ? '-' : ''}
+                      {Math.abs(clientSummary.percentChange).toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Period 2 (Older) */}
+                <div className="text-center md:text-right space-y-1.5 md:pr-6">
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                    {comparisonData.period2.nama || 'Periode 2'}
+                  </div>
+                  <div className="text-3xl font-black text-slate-700 tracking-tight">
+                    {formatCurrency(clientSummary.olderTotal)}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    {comparisonData.period2.transaksi?.length || 0} Transaksi Tercatat
                   </div>
                 </div>
               </div>
-            )}
+            </CardContent>
+          </Card>
 
-            {comparisonData.summary.totalDifference < 0 && (
-              <div className="flex items-start gap-4 p-4 bg-green-500/10 rounded-lg border border-green-500/20">
-                <TrendingDown className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <div className="font-bold text-base">Spending Decreased</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {comparisonData.period1.nama || 'Period 1'} spent <strong className="text-green-600">{formatCurrency(Math.abs(comparisonData.summary.totalDifference))}</strong> less
-                    than {comparisonData.period2.nama || 'Period 2'}
+          {/* Key Insights */}
+          <Card className="border border-slate-200 bg-white rounded-2xl shadow-sm overflow-hidden">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-bold text-slate-900 uppercase tracking-wider">
+                Insight Utama
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {clientSummary.trend === 'up' && (
+                <div className="flex items-start gap-4 p-5 bg-rose-50/60 rounded-2xl border border-rose-100/80">
+                  <div className="p-3 bg-rose-100/50 border border-rose-200/50 rounded-xl flex-shrink-0">
+                    <TrendingUp className="h-6 w-6 text-rose-700" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="font-bold text-base text-rose-700">Pengeluaran Meningkat</div>
+                    <p className="text-sm text-slate-700 leading-relaxed">
+                      Pada periode <strong className="text-slate-900">{comparisonData.period1.nama}</strong>, Anda membelanjakan <strong className="text-rose-700 font-bold">{formatCurrency(clientSummary.difference)}</strong> lebih banyak (<span className="font-bold">+{Math.abs(clientSummary.percentChange).toFixed(1)}%</span>) dibandingkan periode <strong className="text-slate-900">{comparisonData.period2.nama}</strong>.
+                    </p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {comparisonData.summary.totalDifference === 0 && (
-              <div className="flex items-start gap-4 p-4 bg-muted rounded-lg border">
-                <Minus className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                <div>
-                  <div className="font-bold text-base">Spending Remained Stable</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    Both periods had identical total spending
+              {clientSummary.trend === 'down' && (
+                <div className="flex items-start gap-4 p-5 bg-emerald-50/60 rounded-2xl border border-emerald-100/80">
+                  <div className="p-3 bg-emerald-100/50 border border-emerald-200/50 rounded-xl flex-shrink-0">
+                    <TrendingDown className="h-6 w-6 text-emerald-700" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="font-bold text-base text-emerald-700">Pengeluaran Menurun (Hemat)</div>
+                    <p className="text-sm text-slate-700 leading-relaxed">
+                      Luar biasa! Pada periode <strong className="text-slate-900">{comparisonData.period1.nama}</strong>, Anda berhasil menghemat <strong className="text-emerald-700 font-bold">{formatCurrency(clientSummary.difference)}</strong> lebih sedikit (<span className="font-bold">-{Math.abs(clientSummary.percentChange).toFixed(1)}%</span>) dibandingkan periode <strong className="text-slate-900">{comparisonData.period2.nama}</strong>.
+                    </p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {(() => {
-              const biggestChange = comparisonData.comparison.reduce((max, item) =>
-                Math.abs(item.percentChange) > Math.abs(max.percentChange) ? item : max
-              )
-
-              return (
-                <div className="flex items-start gap-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
-                  <div className="p-2 bg-primary/20 rounded-lg flex-shrink-0">
-                    {getTrendIcon(biggestChange.trend)}
+              {clientSummary.trend === 'stable' && (
+                <div className="flex items-start gap-4 p-5 bg-slate-50/80 rounded-2xl border border-slate-200/60">
+                  <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl flex-shrink-0">
+                    <Minus className="h-6 w-6 text-slate-500" />
                   </div>
-                  <div>
-                    <div className="font-bold text-base">Biggest Change: {biggestChange.kategori.nama}</div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {biggestChange.trend === 'up' ? 'Increased' : biggestChange.trend === 'down' ? 'Decreased' : 'Remained stable'} by
-                      <strong> {biggestChange.trend === 'up' ? '+' : biggestChange.trend === 'down' ? '' : ''}{biggestChange.percentChange.toFixed(1)}%</strong>
-                      ({formatCurrency(Math.abs(biggestChange.difference))})
+                  <div className="space-y-1">
+                    <div className="font-bold text-base text-slate-800">Pengeluaran Stabil</div>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Kedua periode memiliki total pengeluaran yang sama persis yaitu <strong className="text-slate-900">{formatCurrency(clientSummary.recentTotal)}</strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {(() => {
+                if (comparisonData.comparison.length === 0) return null
+
+                // Calculate relative difference for each item on the client side
+                const processedComparison = comparisonData.comparison.map(item => {
+                  const recentAmt = item.period1Amount
+                  const olderAmt = item.period2Amount
+                  const diff = recentAmt - olderAmt
+                  const pct = olderAmt > 0 ? (diff / olderAmt) * 100 : 0
+                  return {
+                    ...item,
+                    clientDiff: diff,
+                    clientPct: pct,
+                    clientTrend: diff > 0 ? 'up' : diff < 0 ? 'down' : 'stable'
+                  }
+                })
+
+                const biggestChange = processedComparison.reduce((max, item) =>
+                  Math.abs(item.clientPct) > Math.abs(max.clientPct) ? item : max
+                , processedComparison[0])
+
+                if (!biggestChange || Math.abs(biggestChange.clientDiff) === 0) return null
+
+                return (
+                  <div className="flex items-start gap-4 p-5 bg-indigo-50/60 rounded-2xl border border-indigo-100/80">
+                    <div className="p-3 bg-indigo-100/50 border border-indigo-200/50 rounded-xl flex-shrink-0">
+                      <AlertCircle className="h-6 w-6 text-indigo-700" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="font-bold text-base text-indigo-700">
+                        Perubahan Terbesar: {biggestChange.kategori.nama}
+                      </div>
+                      <p className="text-sm text-slate-700 leading-relaxed">
+                        Kategori <strong className="text-slate-900">{biggestChange.kategori.nama}</strong> mencatat persentase pergeseran paling signifikan, dengan pengeluaran yang {
+                          biggestChange.clientTrend === 'up' 
+                            ? <span className="text-rose-700 font-bold">meningkat sebesar {biggestChange.clientPct.toFixed(1)}%</span>
+                            : <span className="text-emerald-700 font-bold">menurun sebesar {Math.abs(biggestChange.clientPct).toFixed(1)}%</span>
+                        } (<strong className="text-slate-900">{formatCurrency(Math.abs(biggestChange.clientDiff))}</strong>) dari periode sebelumnya.
+                      </p>
                     </div>
                   </div>
-                </div>
-              )
-            })()}
+                )
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* Category Comparison Grid */}
+          <div className="space-y-4">
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">Perbandingan per Kategori</h3>
+            <div className="grid gap-6 md:grid-cols-2">
+              {comparisonData.comparison.map((item) => {
+                const recentAmt = item.period1Amount
+                const olderAmt = item.period2Amount
+                const diff = recentAmt - olderAmt
+                const pct = olderAmt > 0 ? (diff / olderAmt) * 100 : 0
+                const trend = diff > 0 ? 'up' : diff < 0 ? 'down' : 'stable'
+                const maxAmount = Math.max(recentAmt, olderAmt)
+
+                return (
+                  <Card 
+                    key={item.kategori.id} 
+                    className="border border-slate-200 bg-white hover:border-slate-300/80 hover:shadow-lg transition-all duration-300 rounded-2xl shadow-sm overflow-hidden relative"
+                    style={{
+                      borderTopColor: item.kategori.warna || '#3b82f6',
+                      borderTopWidth: '4px',
+                    }}
+                  >
+                    <CardContent className="pt-6 space-y-5">
+                      {/* Category Header */}
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-3.5 h-3.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: item.kategori.warna || '#3b82f6' }}
+                          />
+                          <span className="font-black text-base text-slate-900">{item.kategori.nama}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {getTrendIcon(trend)}
+                          <span className={`text-xs font-bold ${getTrendColor(trend)}`}>
+                            {trend === 'up' ? '+' : trend === 'down' ? '-' : ''}
+                            {Math.abs(pct).toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Amounts Breakdown */}
+                      <div className="grid grid-cols-3 gap-4 items-center">
+                        <div className="space-y-1">
+                          <div className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider truncate">
+                            {comparisonData.period1.nama || 'Periode 1'}
+                          </div>
+                          <div className="font-extrabold text-sm text-slate-900">
+                            {formatCurrency(recentAmt)}
+                          </div>
+                        </div>
+
+                        <div className="text-center space-y-1 border-x border-slate-100 px-2">
+                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            Selisih
+                          </div>
+                          <div className={`font-extrabold text-sm ${getTrendColor(trend)}`}>
+                            {trend === 'up' ? '+' : trend === 'down' ? '-' : ''}
+                            {formatCurrency(Math.abs(diff))}
+                          </div>
+                        </div>
+
+                        <div className="text-right space-y-1">
+                          <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">
+                            {comparisonData.period2.nama || 'Periode 2'}
+                          </div>
+                          <div className="font-extrabold text-sm text-slate-700">
+                            {formatCurrency(olderAmt)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Stacked relative progress visualizer */}
+                      {maxAmount > 0 ? (
+                        <div className="space-y-3 pt-2">
+                          {/* Period 1 Bar */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-wide">
+                              <span>{comparisonData.period1.nama}</span>
+                              <span className="text-slate-700 font-extrabold">
+                                {((recentAmt / maxAmount) * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${(recentAmt / maxAmount) * 100}%`
+                                }}
+                              />
+                            </div>
+                          </div>
+                          {/* Period 2 Bar */}
+                          <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] text-slate-500 font-bold uppercase tracking-wide">
+                              <span>{comparisonData.period2.nama}</span>
+                              <span className="text-slate-600 font-extrabold">
+                                {((olderAmt / maxAmount) * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-slate-400 rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${(olderAmt / maxAmount) * 100}%`
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-xs text-slate-500 font-medium">
+                          Tidak ada pengeluaran pada kedua periode untuk kategori ini.
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </>
+      )}
     </div>
   )
 }

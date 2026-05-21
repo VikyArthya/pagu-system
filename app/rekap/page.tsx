@@ -24,194 +24,186 @@ export default async function RekapPage() {
   const periode = periodeData.data
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex-1 p-6 md:p-10 space-y-10 overflow-y-auto">
       {/* Header */}
-      <header className="border-b bg-background shadow-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Kembali
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">Rekap Transaksi</h1>
-                <p className="text-muted-foreground mt-1">
-                  Riwayat pengeluaran per periode
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button asChild variant="outline">
-                <Link href="/periode/compare">
-                  <GitCompare className="h-4 w-4 mr-2" />
-                  Compare Periods
-                </Link>
-              </Button>
-              <PeriodDialog />
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 border-b border-slate-200 pb-8">
+        <div>
+          <div className="text-xs font-bold text-indigo-600 uppercase tracking-widest mb-1.5">
+            Laporan Keuangan
           </div>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 md:text-4xl">
+            Rekap Transaksi
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Riwayat pengeluaran per masing-masing periode anggaran.
+          </p>
         </div>
-      </header>
+
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="h-10 border-slate-200 hover:bg-slate-50 bg-white text-slate-700">
+            <Link href="/periode/compare" className="flex items-center">
+              <GitCompare className="h-4 w-4 mr-2 text-indigo-650" />
+              Bandingkan Periode
+            </Link>
+          </Button>
+          <PeriodDialog />
+        </div>
+      </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-8">
-          {periode.length === 0 ? (
-            <Card className="border-2">
-              <CardContent className="py-16 text-center">
-                <Calendar className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-xl font-semibold mb-2">Belum ada periode</h3>
-                <p className="text-muted-foreground mb-6">
-                  Mulai dengan membuat periode baru dan transaksi
-                </p>
-                <PeriodDialog />
-              </CardContent>
-            </Card>
-          ) : (
-            periode.map((period) => {
-              const totalPerKategori = period.transaksi.reduce((acc, transaksi) => {
-                const kategoriNama = transaksi.kategori.nama
-                if (!acc[kategoriNama]) {
-                  acc[kategoriNama] = {
-                    jumlah: 0,
-                    count: 0,
-                    warna: transaksi.kategori.warna || undefined,
-                  }
+      <div className="space-y-8">
+        {periode.length === 0 ? (
+          <Card className="border border-slate-200 bg-white shadow-sm">
+            <CardContent className="py-16 text-center">
+              <Calendar className="h-16 w-16 mx-auto mb-4 text-slate-400 opacity-50" />
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Belum ada periode</h3>
+              <p className="text-slate-500 text-sm mb-6 max-w-sm mx-auto">
+                Mulai dengan membuat periode baru untuk mencatat pengeluaran Anda.
+              </p>
+              <PeriodDialog />
+            </CardContent>
+          </Card>
+        ) : (
+          periode.map((period) => {
+            const totalPerKategori = period.transaksi.reduce((acc, transaksi) => {
+              const kategoriNama = transaksi.kategori?.nama || 'Tanpa Kategori'
+              if (!acc[kategoriNama]) {
+                acc[kategoriNama] = {
+                  jumlah: 0,
+                  count: 0,
+                  warna: transaksi.kategori?.warna || undefined,
                 }
-                acc[kategoriNama].jumlah += transaksi.jumlah
-                acc[kategoriNama].count += 1
-                return acc
-              }, {} as Record<string, { jumlah: number; count: number; warna?: string | null }>)
+              }
+              acc[kategoriNama].jumlah += Number(transaksi.jumlah)
+              acc[kategoriNama].count += 1
+              return acc
+            }, {} as Record<string, { jumlah: number; count: number; warna?: string | null }>)
 
-              const totalPeriod = period.transaksi.reduce(
-                (sum, t) => sum + t.jumlah,
-                0
-              )
+            const totalPeriod = period.transaksi.reduce(
+              (sum, t) => sum + Number(t.jumlah),
+              0
+            )
 
-              return (
-                <Card key={period.id} className="border-2 overflow-hidden hover:border-primary/50 transition-colors">
-                  <CardHeader className="bg-muted/50 border-b">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
-                          <CardTitle className="flex items-center gap-2 text-xl">
-                            <Calendar className="h-5 w-5" />
-                            {period.nama || 'Unnamed Period'}
-                          </CardTitle>
-                          {period.isActive && (
-                            <span className="px-3 py-1 text-xs font-medium bg-green-500/10 text-green-600 border border-green-500/20 rounded-full">
-                              Aktif
+            return (
+              <Card key={period.id} className="border border-slate-200 bg-white overflow-hidden hover:border-slate-300 transition-all duration-300 rounded-2xl shadow-sm">
+                <CardHeader className="bg-slate-50/75 border-b border-slate-100 p-6">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <CardTitle className="flex items-center gap-2 text-xl font-black text-slate-900">
+                          <Calendar className="h-5 w-5 text-indigo-650" />
+                          {period.nama || 'Unnamed Period'}
+                        </CardTitle>
+                        {period.isActive && (
+                          <span className="px-3 py-0.5 text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full">
+                            Aktif
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1.5 text-xs text-slate-550">
+                        <div className="flex items-center gap-4">
+                          <span>{formatDateFull(period.tanggalMulai)} - {formatDateFull(period.tanggalAkhir)}</span>
+                          {period.templateType && (
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 font-bold uppercase tracking-wider text-[9px]">
+                              {period.templateType}
                             </span>
                           )}
                         </div>
-                        <div className="space-y-1 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-4">
-                            <span>{formatDateFull(period.tanggalMulai)} - {formatDateFull(period.tanggalAkhir)}</span>
-                            {period.templateType && (
-                              <span className="px-2 py-0.5 bg-background rounded text-xs font-medium">
-                                {period.templateType}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-4 text-base">
-                            <span><strong>{period.transaksi.length}</strong> transaksi</span>
-                            <span>•</span>
-                            <span>Total: <strong className="text-destructive">{formatCurrency(totalPeriod)}</strong></span>
-                          </div>
+                        <div className="flex items-center gap-3 text-sm text-slate-650 pt-1 font-medium">
+                          <span><strong>{period.transaksi.length}</strong> transaksi</span>
+                          <span>•</span>
+                          <span>Total Pengeluaran: <strong className="text-rose-600 font-bold">{formatCurrency(totalPeriod)}</strong></span>
                         </div>
                       </div>
-                      <Button asChild variant="outline" className="flex-shrink-0">
-                        <Link href={`/periode/${period.id}`}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Detail
-                        </Link>
-                      </Button>
                     </div>
-                  </CardHeader>
+                    <Button asChild variant="outline" size="sm" className="h-9 border-slate-200 hover:bg-slate-50 bg-white text-slate-750 flex-shrink-0">
+                      <Link href={`/periode/${period.id}`}>
+                        <Eye className="h-4 w-4 mr-2 text-slate-500" />
+                        Detail Analisis
+                      </Link>
+                    </Button>
+                  </div>
+                </CardHeader>
 
-                  <CardContent className="p-0">
-                    {period.transaksi.length === 0 ? (
-                      <div className="py-12 text-center text-muted-foreground">
-                        <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p>Tidak ada transaksi pada periode ini</p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="font-semibold">Tanggal</TableHead>
-                              <TableHead className="font-semibold">Kategori</TableHead>
-                              <TableHead className="font-semibold">Deskripsi</TableHead>
-                              <TableHead className="text-right font-semibold">Jumlah</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {period.transaksi.map((transaksi) => (
-                              <TableRow key={transaksi.id} className="hover:bg-muted/50">
-                                <TableCell>{formatDate(transaksi.tanggal)}</TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className="w-3 h-3 rounded-full flex-shrink-0"
-                                      style={{
-                                        backgroundColor: transaksi.kategori.warna || '#3b82f6',
-                                      }}
-                                    />
-                                    <span className="font-medium">{transaksi.kategori.nama}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell>{transaksi.deskripsi}</TableCell>
-                                <TableCell className="text-right font-medium">
-                                  {formatCurrency(transaksi.jumlah)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-
-                    {/* Summary per kategori */}
-                    {Object.keys(totalPerKategori).length > 0 && (
-                      <div className="border-t bg-muted/30 p-6">
-                        <h4 className="font-semibold mb-4 text-base">Ringkasan per Kategori</h4>
-                        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                          {Object.entries(totalPerKategori).map(([nama, data]) => (
-                            <div
-                              key={nama}
-                              className="flex items-center justify-between p-3 rounded-lg bg-background border hover:border-primary/30 transition-colors"
-                            >
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <div
-                                  className="w-3 h-3 rounded-full flex-shrink-0"
-                                  style={{ backgroundColor: data.warna || '#3b82f6' }}
-                                />
-                                <div className="min-w-0">
-                                  <span className="text-sm font-medium block truncate">{nama}</span>
-                                  <span className="text-xs text-muted-foreground">
-                                    {data.count} transaksi
-                                  </span>
+                <CardContent className="p-0">
+                  {period.transaksi.length === 0 ? (
+                    <div className="py-12 text-center text-slate-500 bg-slate-50/10 border-b border-slate-100">
+                      <Calendar className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-xs">Tidak ada transaksi pada periode ini</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto border-b border-slate-100">
+                      <Table>
+                        <TableHeader className="bg-slate-50/50 text-slate-550 uppercase text-[10px] font-bold tracking-wider">
+                          <TableRow className="border-slate-100">
+                            <TableHead className="font-bold pl-6">Tanggal</TableHead>
+                            <TableHead className="font-bold">Kategori</TableHead>
+                            <TableHead className="font-bold">Deskripsi</TableHead>
+                            <TableHead className="text-right font-bold pr-6">Jumlah</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody className="divide-y divide-slate-100">
+                          {period.transaksi.map((transaksi) => (
+                            <TableRow key={transaksi.id} className="hover:bg-slate-50/30 text-slate-650 border-slate-100">
+                              <TableCell className="pl-6 text-slate-500 text-xs">{formatDate(transaksi.tanggal)}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                    style={{
+                                      backgroundColor: transaksi.kategori?.warna || '#3b82f6',
+                                    }}
+                                  />
+                                  <span className="font-semibold text-slate-800">{transaksi.kategori?.nama || 'Tanpa Kategori'}</span>
                                 </div>
-                              </div>
-                              <span className="font-semibold text-sm ml-2 flex-shrink-0">
-                                {formatCurrency(data.jumlah)}
-                              </span>
-                            </div>
+                              </TableCell>
+                              <TableCell className="max-w-xs truncate font-medium text-slate-700">{transaksi.deskripsi}</TableCell>
+                              <TableCell className="text-right pr-6 font-bold text-rose-600">
+                                {formatCurrency(transaksi.jumlah)}
+                              </TableCell>
+                            </TableRow>
                           ))}
-                        </div>
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+
+                  {/* Summary per kategori */}
+                  {Object.keys(totalPerKategori).length > 0 && (
+                    <div className="bg-slate-50/30 p-6">
+                      <h4 className="font-bold text-slate-500 mb-4 text-xs uppercase tracking-wider">Ringkasan per Kategori</h4>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {Object.entries(totalPerKategori).map(([nama, data]) => (
+                          <div
+                            key={nama}
+                            className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition-colors"
+                          >
+                            <div className="flex items-center gap-3.5 flex-1 min-w-0">
+                              <div
+                                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: data.warna || '#3b82f6' }}
+                              />
+                              <div className="min-w-0">
+                                <span className="text-sm font-bold text-slate-800 block truncate">{nama}</span>
+                                <span className="text-[10px] text-slate-400 font-bold">
+                                  {data.count} transaksi
+                                </span>
+                              </div>
+                            </div>
+                            <span className="font-bold text-sm text-slate-900 ml-2 flex-shrink-0">
+                              {formatCurrency(data.jumlah)}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )
-            })
-          )}
-        </div>
-      </main>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
+      </div>
     </div>
   )
 }
