@@ -4,6 +4,82 @@ import { prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { getDateRangeForPeriod } from '@/lib/utils'
 
+export async function ensurePeriodBudgetsInitialized(periodeId: string) {
+  try {
+    const categories = await prisma.kategoriPagu.findMany()
+    const existingBudgets = await prisma.anggaranKategoriPeriode.findMany({
+      where: { periodeId },
+    })
+
+    const existingKategoriIds = new Set(existingBudgets.map((b: any) => b.kategoriId))
+    const missingCategories = categories.filter((c: any) => !existingKategoriIds.has(c.id))
+
+    if (missingCategories.length === 0) {
+      return { success: true }
+    }
+
+    const creationData = missingCategories.map((cat: any) => ({
+      kategoriId: cat.id,
+      periodeId,
+      anggaran: cat.anggaranDasar,
+    }))
+
+    if (creationData.length > 0) {
+      await prisma.anggaranKategoriPeriode.createMany({
+        data: creationData,
+      })
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error initializing period budgets:', error)
+    return { success: false, error: 'Gagal menginisialisasi anggaran periode' }
+  }
+}
+
+export async function updatePeriodeKategoriBudget(
+  periodeId: string,
+  kategoriId: string,
+  anggaran: number
+) {
+  try {
+    if (!periodeId || !kategoriId) {
+      return { success: false, error: 'Periode ID dan Kategori ID diperlukan' }
+    }
+
+    if (isNaN(anggaran) || anggaran <= 0) {
+      return { success: false, error: 'Jumlah anggaran harus berupa angka positif' }
+    }
+
+    await prisma.anggaranKategoriPeriode.upsert({
+      where: {
+        kategoriId_periodeId: {
+          kategoriId,
+          periodeId,
+        },
+      },
+      update: {
+        anggaran,
+      },
+      create: {
+        kategoriId,
+        periodeId,
+        anggaran,
+      },
+    })
+
+    revalidatePath('/')
+    revalidatePath('/rekap')
+    revalidatePath('/periode')
+    revalidatePath(`/periode/${periodeId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating period category budget:', error)
+    return { success: false, error: 'Gagal mengubah anggaran kategori' }
+  }
+}
+
 export async function getPeriodeAktif() {
   try {
     const today = new Date()
@@ -94,6 +170,10 @@ export async function getPeriodeAktif() {
       })
     }
 
+    if (periode) {
+      await ensurePeriodBudgetsInitialized(periode.id)
+    }
+
     return {
       success: true,
       data: periode ? {
@@ -106,7 +186,7 @@ export async function getPeriodeAktif() {
         notes: periode.notes,
         createdAt: periode.createdAt,
         updatedAt: periode.updatedAt,
-        transaksi: (periode.transaksi || []).map((t) => ({
+        transaksi: (periode.transaksi || []).map((t: any) => ({
           id: t.id,
           tanggal: t.tanggal,
           deskripsi: t.deskripsi,
@@ -138,7 +218,7 @@ export async function getAllPeriode() {
     })
     return {
       success: true,
-      data: periode.map((p) => ({
+      data: periode.map((p: any) => ({
         id: p.id,
         nama: p.nama,
         tanggalMulai: p.tanggalMulai,
@@ -148,7 +228,7 @@ export async function getAllPeriode() {
         notes: p.notes,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
-        transaksi: p.transaksi.map((t) => ({
+        transaksi: p.transaksi.map((t: any) => ({
           id: t.id,
           tanggal: t.tanggal,
           deskripsi: t.deskripsi,
@@ -183,6 +263,13 @@ export async function getPeriodeById(id: string) {
       return { success: false, error: 'Invalid periode ID' }
     }
 
+    await ensurePeriodBudgetsInitialized(id)
+
+    const periodBudgets = await prisma.anggaranKategoriPeriode.findMany({
+      where: { periodeId: id },
+    })
+    const budgetMap = new Map<string, number>(periodBudgets.map((pb: any) => [pb.kategoriId, Number(pb.anggaran)] as [string, number]))
+
     const periode = await prisma.periodeAnggaran.findUnique({
       where: { id },
       include: {
@@ -208,7 +295,7 @@ export async function getPeriodeById(id: string) {
         notes: periode.notes,
         createdAt: periode.createdAt,
         updatedAt: periode.updatedAt,
-        transaksi: periode.transaksi.map((t) => ({
+        transaksi: periode.transaksi.map((t: any) => ({
           id: t.id,
           tanggal: t.tanggal,
           deskripsi: t.deskripsi,
@@ -220,7 +307,7 @@ export async function getPeriodeById(id: string) {
           kategori: t.kategori ? {
             id: t.kategori.id,
             nama: t.kategori.nama,
-            anggaranDasar: Number(t.kategori.anggaranDasar),
+            anggaranDasar: budgetMap.get(t.kategori.id) ?? Number(t.kategori.anggaranDasar),
             warna: t.kategori.warna,
             ikon: t.kategori.ikon,
             urutan: t.kategori.urutan,
@@ -244,6 +331,9 @@ export async function createPeriode(data: { tanggalMulai: Date; tanggalAkhir: Da
         tanggalAkhir: data.tanggalAkhir,
       },
     })
+    
+    await ensurePeriodBudgetsInitialized(periode.id)
+
     revalidatePath('/')
     revalidatePath('/rekap')
     return {
@@ -321,6 +411,8 @@ export async function createPeriodeWithTemplate(data: {
         notes: data.notes,
       },
     })
+
+    await ensurePeriodBudgetsInitialized(periode.id)
 
     revalidatePath('/')
     revalidatePath('/rekap')
@@ -410,7 +502,7 @@ export async function comparePeriode(period1Id: string, period2Id: string) {
     // Calculate spending by category for each period
     const calculateCategorySpending = (periode: any) => {
       const spending: Record<string, number> = {}
-      kategori.forEach((k) => {
+      kategori.forEach((k: any) => {
         spending[k.id] = 0
       })
 
@@ -427,7 +519,7 @@ export async function comparePeriode(period1Id: string, period2Id: string) {
     const spending2 = calculateCategorySpending(periode2)
 
     // Generate comparison data
-    const comparison = kategori.map((k) => {
+    const comparison = kategori.map((k: any) => {
       const amount1 = spending1[k.id] || 0
       const amount2 = spending2[k.id] || 0
       const difference = amount2 - amount1
@@ -490,13 +582,13 @@ export async function getPeriodeSummaries() {
       },
     })
 
-    const summaries = periode.map((p) => {
-      const totalAmount = p.transaksi.reduce((sum, t) => sum + Number(t.jumlah), 0)
+    const summaries = periode.map((p: any) => {
+      const totalAmount = p.transaksi.reduce((sum: number, t: any) => sum + Number(t.jumlah), 0)
       const transactionCount = p.transaksi.length
 
       // Get spending by category
       const categorySpending: Record<string, { amount: number; count: number; name: string; warna?: string | null }> = {}
-      p.transaksi.forEach((t) => {
+      p.transaksi.forEach((t: any) => {
         if (!categorySpending[t.kategoriId]) {
           categorySpending[t.kategoriId] = {
             amount: 0,

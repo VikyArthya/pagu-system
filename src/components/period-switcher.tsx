@@ -61,7 +61,7 @@ export function PeriodSwitcher({
           setPeriode(result.data)
 
           if (currentPeriodeId) {
-            const current = result.data.find((p) => p.id === currentPeriodeId)
+            const current = result.data.find((p: any) => p.id === currentPeriodeId)
             if (current) setSelectedPeriode(current as unknown as PeriodeData)
           } else {
             const activeResult = await getPeriodeAktif()

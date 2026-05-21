@@ -112,7 +112,7 @@ export function TransaksiForm({
       }
 
       const result = await createTransaksi({
-        tanggal: new Date(formData.tanggal),
+        tanggal: formData.tanggal,
         deskripsi: formData.deskripsi,
         jumlah,
         kategoriId: formData.kategoriId,
@@ -218,7 +218,7 @@ export function TransaksiForm({
                 onChange={(e) => setFormData({ ...formData, jumlah: e.target.value })}
                 required
                 min="0"
-                step="1000"
+                step="any"
                 className="bg-white border-slate-200 text-slate-900 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl"
               />
             </div>

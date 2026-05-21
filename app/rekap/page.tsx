@@ -64,8 +64,8 @@ export default async function RekapPage() {
             </CardContent>
           </Card>
         ) : (
-          periode.map((period) => {
-            const totalPerKategori = period.transaksi.reduce((acc, transaksi) => {
+          periode.map((period: any) => {
+            const totalPerKategori = period.transaksi.reduce((acc: Record<string, { jumlah: number; count: number; warna?: string | null }>, transaksi: any) => {
               const kategoriNama = transaksi.kategori?.nama || 'Tanpa Kategori'
               if (!acc[kategoriNama]) {
                 acc[kategoriNama] = {
@@ -80,7 +80,7 @@ export default async function RekapPage() {
             }, {} as Record<string, { jumlah: number; count: number; warna?: string | null }>)
 
             const totalPeriod = period.transaksi.reduce(
-              (sum, t) => sum + Number(t.jumlah),
+              (sum: number, t: any) => sum + Number(t.jumlah),
               0
             )
 
@@ -143,7 +143,7 @@ export default async function RekapPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody className="divide-y divide-slate-100">
-                          {period.transaksi.map((transaksi) => (
+                          {period.transaksi.map((transaksi: any) => (
                             <TableRow key={transaksi.id} className="hover:bg-slate-50/30 text-slate-650 border-slate-100">
                               <TableCell className="pl-6 text-slate-500 text-xs">{formatDate(transaksi.tanggal)}</TableCell>
                               <TableCell>
@@ -173,7 +173,7 @@ export default async function RekapPage() {
                     <div className="bg-slate-50/30 p-6">
                       <h4 className="font-bold text-slate-500 mb-4 text-xs uppercase tracking-wider">Ringkasan per Kategori</h4>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {Object.entries(totalPerKategori).map(([nama, data]) => (
+                        {Object.entries(totalPerKategori).map(([nama, data]: [string, any]) => (
                           <div
                             key={nama}
                             className="flex items-center justify-between p-3.5 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition-colors"

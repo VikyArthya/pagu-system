@@ -43,8 +43,8 @@ export default async function Home(props: {
 
   const { periode, kategori } = dashboardData.data
 
-  const totalAnggaran = kategori.reduce((sum, k) => sum + k.anggaranDasar, 0)
-  const totalTerpakai = kategori.reduce((sum, k) => sum + k.totalTransaksi, 0)
+  const totalAnggaran = kategori.reduce((sum: number, k: any) => sum + k.anggaranDasar, 0)
+  const totalTerpakai = kategori.reduce((sum: number, k: any) => sum + k.totalTransaksi, 0)
   const sisaSaldo = totalAnggaran - totalTerpakai
 
   return (
@@ -229,7 +229,7 @@ export default async function Home(props: {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {periode.transaksi.slice(0, 5).map((transaksi) => (
+                    {periode.transaksi.slice(0, 5).map((transaksi: any) => (
                       <tr 
                         key={transaksi.id} 
                         className="hover:bg-slate-50/50 transition-colors text-slate-650 border-slate-100"

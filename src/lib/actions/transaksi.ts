@@ -108,7 +108,7 @@ export async function getTotalTransaksiByKategori(
 }
 
 export async function createTransaksi(data: {
-  tanggal: Date
+  tanggal: string | Date
   deskripsi: string
   jumlah: number
   kategoriId: string
@@ -130,6 +130,10 @@ export async function createTransaksi(data: {
     end.setHours(23, 59, 59, 999)
     
     const txDate = new Date(data.tanggal)
+    if (isNaN(txDate.getTime())) {
+      return { success: false, error: 'Format tanggal tidak valid' }
+    }
+
     if (txDate < start || txDate > end) {
       const formatDateLocal = (date: Date) => {
         return new Intl.DateTimeFormat('id-ID', {
@@ -153,6 +157,19 @@ export async function createTransaksi(data: {
       return { success: false, error: 'Kategori tidak ditemukan' }
     }
 
+    // Pastikan anggaran periode diinisialisasi
+    const { ensurePeriodBudgetsInitialized } = await import('./periode')
+    await ensurePeriodBudgetsInitialized(data.periodeId)
+
+    const periodBudget = await prisma.anggaranKategoriPeriode.findUnique({
+      where: {
+        kategoriId_periodeId: {
+          kategoriId: data.kategoriId,
+          periodeId: data.periodeId,
+        },
+      },
+    })
+
     const totalTransaksi = await prisma.transaksi.aggregate({
       where: {
         kategoriId: data.kategoriId,
@@ -163,7 +180,8 @@ export async function createTransaksi(data: {
       },
     })
 
-    const sisaSaldo = Number(kategori.anggaranDasar) - Number(totalTransaksi._sum.jumlah || 0)
+    const budgetAmount = periodBudget ? Number(periodBudget.anggaran) : Number(kategori.anggaranDasar)
+    const sisaSaldo = budgetAmount - Number(totalTransaksi._sum.jumlah || 0)
 
     if (data.jumlah > sisaSaldo) {
       return {
@@ -178,7 +196,7 @@ export async function createTransaksi(data: {
 
     const transaksi = await prisma.transaksi.create({
       data: {
-        tanggal: data.tanggal,
+        tanggal: txDate,
         deskripsi: data.deskripsi,
         jumlah: data.jumlah,
         kategoriId: data.kategoriId,
@@ -189,8 +207,14 @@ export async function createTransaksi(data: {
         periode: true,
       },
     })
-    revalidatePath('/')
-    revalidatePath('/rekap')
+
+    try {
+      revalidatePath('/')
+      revalidatePath('/rekap')
+    } catch (revalError) {
+      console.error('Error during revalidation in createTransaksi:', revalError)
+    }
+
     return {
       success: true,
       data: mapTransaksiPlain(transaksi),
@@ -204,7 +228,7 @@ export async function createTransaksi(data: {
 export async function updateTransaksi(
   id: string,
   data: {
-    tanggal?: Date
+    tanggal?: string | Date
     deskripsi?: string
     jumlah?: number
     kategoriId?: string
@@ -220,13 +244,18 @@ export async function updateTransaksi(
       return { success: false, error: 'Transaksi tidak ditemukan' }
     }
 
+    let txDate: Date | undefined = undefined
     if (data.tanggal) {
+      txDate = new Date(data.tanggal)
+      if (isNaN(txDate.getTime())) {
+        return { success: false, error: 'Format tanggal tidak valid' }
+      }
+
       const start = new Date(existingTx.periode.tanggalMulai)
       start.setHours(0, 0, 0, 0)
       const end = new Date(existingTx.periode.tanggalAkhir)
       end.setHours(23, 59, 59, 999)
       
-      const txDate = new Date(data.tanggal)
       if (txDate < start || txDate > end) {
         const formatDateLocal = (date: Date) => {
           return new Intl.DateTimeFormat('id-ID', {
@@ -245,7 +274,7 @@ export async function updateTransaksi(
     const transaksi = await prisma.transaksi.update({
       where: { id },
       data: {
-        ...(data.tanggal && { tanggal: data.tanggal }),
+        ...(txDate && { tanggal: txDate }),
         ...(data.deskripsi && { deskripsi: data.deskripsi }),
         ...(data.jumlah !== undefined && { jumlah: data.jumlah }),
         ...(data.kategoriId && { kategoriId: data.kategoriId }),
@@ -255,8 +284,14 @@ export async function updateTransaksi(
         periode: true,
       },
     })
-    revalidatePath('/')
-    revalidatePath('/rekap')
+
+    try {
+      revalidatePath('/')
+      revalidatePath('/rekap')
+    } catch (revalError) {
+      console.error('Error during revalidation in updateTransaksi:', revalError)
+    }
+
     return {
       success: true,
       data: mapTransaksiPlain(transaksi),

@@ -1,7 +1,11 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../generated/client'
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+  prisma: any
+}
+
+if (globalForPrisma.prisma && (!globalForPrisma.prisma.anggaranKategoriPeriode || typeof globalForPrisma.prisma.anggaranKategoriPeriode === 'undefined')) {
+  globalForPrisma.prisma = undefined
 }
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({

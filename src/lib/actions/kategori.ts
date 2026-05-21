@@ -10,7 +10,7 @@ export async function getKategoriPagu() {
     })
     return {
       success: true,
-      data: kategori.map((k) => ({
+      data: kategori.map((k: any) => ({
         id: k.id,
         nama: k.nama,
         anggaranDasar: Number(k.anggaranDasar),

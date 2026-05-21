@@ -1,6 +1,8 @@
 import { notFound } from 'next/navigation'
 import { getPeriodeById, getAllPeriode } from '@/lib/actions/periode'
 import { getKategoriPagu } from '@/lib/actions/kategori'
+import { prisma } from '@/lib/prisma'
+import { EditPeriodBudgetDialog } from '@/components/edit-period-budget-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDate, formatDateFull, formatCurrency, calculatePeriodStats } from '@/lib/utils'
@@ -37,21 +39,33 @@ export default async function PeriodeDetailPage(props: PageProps) {
   // Get all periods for navigation
   const allPeriodeData = await getAllPeriode()
   const allPeriode = allPeriodeData.success ? allPeriodeData.data || [] : []
-  const currentIndex = allPeriode.findIndex((p) => p.id === periode.id)
+  const currentIndex = allPeriode.findIndex((p: any) => p.id === periode.id)
   const previousPeriode = currentIndex > 0 ? allPeriode[currentIndex - 1] : null
   const nextPeriode = currentIndex < allPeriode.length - 1 ? allPeriode[currentIndex + 1] : null
 
   // Calculate period statistics
   const stats = calculatePeriodStats(periode.transaksi)
 
+  // Fetch period-specific budgets
+  const periodBudgets = await prisma.anggaranKategoriPeriode.findMany({
+    where: { periodeId: periode.id },
+  })
+  const budgetMap = new Map(periodBudgets.map((pb: any) => [pb.kategoriId, Number(pb.anggaran)]))
+
   // Get category breakdown
-  const categoryBreakdown = kategori.map((k) => {
-    const categoryTransactions = periode.transaksi.filter((t) => t.kategoriId === k.id)
-    const categoryTotal = categoryTransactions.reduce((sum, t) => sum + t.jumlah, 0)
+  const categoryBreakdown = kategori.map((k: any) => {
+    const categoryTransactions = periode.transaksi.filter((t: any) => t.kategoriId === k.id)
+    const categoryTotal = categoryTransactions.reduce((sum: number, t: any) => sum + t.jumlah, 0)
+    const anggaranKategori = (budgetMap.get(k.id) ?? Number(k.anggaranDasar)) as number
+    const sisaSaldo = anggaranKategori - categoryTotal
+    const persentaseTerpakai = anggaranKategori > 0 ? (categoryTotal / anggaranKategori) * 100 : 0
     return {
       ...k,
+      anggaranKategori,
       totalTransactions: categoryTransactions.length,
       totalAmount: categoryTotal,
+      sisaSaldo,
+      persentaseTerpakai,
       percentageOfPeriod: stats.totalAmount > 0 ? (categoryTotal / stats.totalAmount) * 100 : 0,
     }
   })
@@ -59,7 +73,7 @@ export default async function PeriodeDetailPage(props: PageProps) {
   // Calculate insights
   const insights = []
   if (stats.totalAmount > 0) {
-    const topCategory = categoryBreakdown.reduce((max, cat) =>
+    const topCategory = categoryBreakdown.reduce((max: any, cat: any) =>
       cat.totalAmount > max.totalAmount ? cat : max, categoryBreakdown[0])
     insights.push({
       type: 'top',
@@ -79,7 +93,7 @@ export default async function PeriodeDetailPage(props: PageProps) {
       })
     }
 
-    const activeCategories = categoryBreakdown.filter((cat) => cat.totalTransactions > 0).length
+    const activeCategories = categoryBreakdown.filter((cat: any) => cat.totalTransactions > 0).length
     insights.push({
       type: 'categories',
       icon: FileText,
@@ -232,58 +246,109 @@ export default async function PeriodeDetailPage(props: PageProps) {
 
         {/* Category Breakdown */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold tracking-tight text-slate-900">Rincian Per Kategori</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-slate-900">Rincian Per Kategori</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Sisa saldo, persentase pemakaian, dan pengelolaan anggaran per kategori khusus periode ini.</p>
+            </div>
+          </div>
           <div className="grid gap-6 md:grid-cols-2">
-            {categoryBreakdown.map((category) => (
-              <Card
-                key={category.id}
-                className={`border border-slate-200 bg-white relative overflow-hidden transition-all duration-300 rounded-2xl shadow-sm ${
-                  category.totalAmount > 0 ? 'hover:border-slate-350 hover:shadow-md' : 'opacity-60'
-                }`}
-                style={{
-                  borderTopColor: category.warna || '#3b82f6',
-                  borderTopWidth: '4px',
-                }}
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-bold text-slate-900">{category.nama}</CardTitle>
-                    {category.totalAmount > 0 && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-full">
-                        {category.percentageOfPeriod.toFixed(1)}% total
-                      </span>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4 space-y-4">
-                  {category.totalAmount > 0 ? (
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-500">Total Pengeluaran</span>
-                        <span className="font-bold text-rose-600 text-sm">
+            {categoryBreakdown.map((category: any) => {
+              const persentaseSisa = 100 - category.persentaseTerpakai
+              const isLowBalance = persentaseSisa < 20
+
+              return (
+                <Card
+                  key={category.id}
+                  className="border border-slate-200 bg-white relative overflow-hidden transition-all duration-300 rounded-2xl shadow-sm hover:border-slate-300 hover:shadow-md"
+                  style={{
+                    borderTopColor: category.warna || '#3b82f6',
+                    borderTopWidth: '4px',
+                  }}
+                >
+                  <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-base font-bold text-slate-900">{category.nama}</CardTitle>
+                        {category.totalAmount > 0 && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-indigo-650 rounded-full">
+                            {category.percentageOfPeriod.toFixed(1)}% total
+                          </span>
+                        )}
+                      </div>
+                      <EditPeriodBudgetDialog
+                        periodeId={periode.id}
+                        kategoriId={category.id}
+                        kategoriNama={category.nama}
+                        currentAnggaran={category.anggaranKategori}
+                      />
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-5 space-y-5">
+                    {/* Progress Bar showing remaining budget */}
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-500 font-medium">Sisa Saldo Anggaran</span>
+                        <span
+                          className={`font-bold ${
+                            isLowBalance ? 'text-rose-600' : 'text-emerald-600'
+                          }`}
+                        >
+                          {Math.max(0, persentaseSisa).toFixed(0)}% tersisa
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-100">
+                        <div
+                          className="h-full transition-all duration-500 ease-in-out rounded-full"
+                          style={{
+                            width: `${Math.max(0, Math.min(100, persentaseSisa))}%`,
+                            backgroundColor: isLowBalance ? '#ef4444' : category.warna || '#3b82f6',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Budget detail info */}
+                    <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50/40 p-3 rounded-xl border border-slate-200/60">
+                      <div className="space-y-0.5">
+                        <span className="text-slate-450 block font-medium text-[10px] uppercase tracking-wider">Anggaran Periode</span>
+                        <span className="font-bold text-slate-800 text-sm">
+                          {formatCurrency(category.anggaranKategori)}
+                        </span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-slate-450 block font-medium text-[10px] uppercase tracking-wider">Total Terpakai</span>
+                        <span className="font-bold text-rose-655 text-sm">
                           {formatCurrency(category.totalAmount)}
                         </span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-500">Banyak Transaksi</span>
-                        <span className="font-bold text-slate-800 text-sm">{category.totalTransactions}</span>
+                      <div className="space-y-0.5 col-span-2 pt-2 border-t border-slate-200/50">
+                        <span className="text-slate-450 block font-medium text-[10px] uppercase tracking-wider">Sisa Saldo Bersih</span>
+                        <span className={`font-black text-base ${isLowBalance ? 'text-rose-600' : 'text-slate-900'}`}>
+                          {formatCurrency(category.sisaSaldo)}
+                        </span>
                       </div>
-                      <div className="flex justify-between items-center pt-2 border-t border-slate-100">
-                        <span className="text-slate-500 font-semibold">Rata-rata Transaksi</span>
-                        <span className="font-bold text-emerald-600 text-sm">
+                    </div>
+
+                    {/* Performance Insights */}
+                    <div className="space-y-2 text-xs pt-1 border-t border-slate-100/60">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500 font-medium">Banyak Transaksi</span>
+                        <span className="font-bold text-slate-800">
+                          {category.totalTransactions} kali
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500 font-medium">Rata-rata Transaksi</span>
+                        <span className="font-bold text-indigo-650">
                           {formatCurrency(category.totalTransactions > 0 ? category.totalAmount / category.totalTransactions : 0)}
                         </span>
                       </div>
                     </div>
-                  ) : (
-                    <div className="text-center text-slate-400 py-6 text-xs font-medium">
-                      <Eye className="h-8 w-8 mx-auto mb-2 opacity-30 text-slate-450" />
-                      <p>Tidak ada transaksi pada kategori ini</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         </div>
 
@@ -317,7 +382,7 @@ export default async function PeriodeDetailPage(props: PageProps) {
                       </TableRow>
                     </TableHeader>
                     <TableBody className="divide-y divide-slate-100">
-                      {periode.transaksi.map((transaksi) => (
+                      {periode.transaksi.map((transaksi: any) => (
                         <TableRow key={transaksi.id} className="hover:bg-slate-50/30 transition-colors text-slate-655 border-slate-100">
                           <TableCell className="pl-6 text-slate-500 text-xs">{formatDate(transaksi.tanggal)}</TableCell>
                           <TableCell>

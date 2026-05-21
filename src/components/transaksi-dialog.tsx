@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { TransaksiForm } from './transaksi-form'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 interface KategoriOption {
   id: string
@@ -26,6 +27,7 @@ export function TransaksiDialog({
   tanggalAkhir 
 }: TransaksiDialogProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const router = useRouter()
 
   return (
     <>
@@ -42,7 +44,7 @@ export function TransaksiDialog({
         tanggalAkhir={tanggalAkhir}
         onSuccess={() => {
           setIsOpen(false)
-          window.location.reload()
+          router.refresh()
         }}
       />
     </>

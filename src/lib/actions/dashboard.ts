@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
+import { ensurePeriodBudgetsInitialized } from './periode'
 
 export async function getDashboardData(periodeId?: string) {
   try {
@@ -92,6 +93,17 @@ export async function getDashboardData(periodeId?: string) {
       })
     }
 
+    // Ensure budgets are initialized
+    await ensurePeriodBudgetsInitialized(periode.id)
+
+    // Ambil anggaran per kategori untuk periode ini
+    const periodBudgets = await prisma.anggaranKategoriPeriode.findMany({
+      where: { periodeId: periode.id },
+    })
+    const budgetMap = new Map<string, number>(
+      periodBudgets.map((pb: any) => [pb.kategoriId, Number(pb.anggaran)] as [string, number])
+    )
+
     // Ambil semua kategori
     const kategori = await prisma.kategoriPagu.findMany({
       orderBy: { urutan: 'asc' },
@@ -105,24 +117,25 @@ export async function getDashboardData(periodeId?: string) {
       },
     })
 
-    // Hitung total transaksi per kategori
-    const kategoriWithSaldo = kategori.map((k) => {
+    const kategoriWithSaldo = kategori.map((k: any) => {
       const totalTransaksi = transaksi
-        .filter((t) => t.kategoriId === k.id)
-        .reduce((sum, t) => sum + Number(t.jumlah), 0)
+        .filter((t: any) => t.kategoriId === k.id)
+        .reduce((sum: number, t: any) => sum + Number(t.jumlah), 0)
+
+      const actualAnggaran = budgetMap.get(k.id) ?? Number(k.anggaranDasar)
 
       return {
         id: k.id,
         nama: k.nama,
-        anggaranDasar: Number(k.anggaranDasar),
+        anggaranDasar: actualAnggaran,
         warna: k.warna,
         ikon: k.ikon,
         urutan: k.urutan,
         createdAt: k.createdAt,
         updatedAt: k.updatedAt,
         totalTransaksi,
-        sisaSaldo: Number(k.anggaranDasar) - totalTransaksi,
-        persentaseTerpakai: (totalTransaksi / Number(k.anggaranDasar)) * 100,
+        sisaSaldo: actualAnggaran - totalTransaksi,
+        persentaseTerpakai: actualAnggaran > 0 ? (totalTransaksi / actualAnggaran) * 100 : 0,
       }
     })
 
@@ -139,7 +152,7 @@ export async function getDashboardData(periodeId?: string) {
           notes: periode.notes,
           createdAt: periode.createdAt,
           updatedAt: periode.updatedAt,
-          transaksi: transaksi.map((t) => ({
+          transaksi: transaksi.map((t: any) => ({
             id: t.id,
             tanggal: t.tanggal,
             deskripsi: t.deskripsi,
@@ -151,7 +164,7 @@ export async function getDashboardData(periodeId?: string) {
             kategori: t.kategori ? {
               id: t.kategori.id,
               nama: t.kategori.nama,
-              anggaranDasar: Number(t.kategori.anggaranDasar),
+              anggaranDasar: budgetMap.get(t.kategori.id) ?? Number(t.kategori.anggaranDasar),
               warna: t.kategori.warna,
               ikon: t.kategori.ikon,
               urutan: t.kategori.urutan,
@@ -179,6 +192,19 @@ export async function getSisaSaldo(kategoriId: string, periodeId: string) {
       return { success: false, error: 'Kategori tidak ditemukan' }
     }
 
+    await ensurePeriodBudgetsInitialized(periodeId)
+
+    const periodBudget = await prisma.anggaranKategoriPeriode.findUnique({
+      where: {
+        kategoriId_periodeId: {
+          kategoriId,
+          periodeId,
+        },
+      },
+    })
+
+    const budgetAmount = periodBudget ? Number(periodBudget.anggaran) : Number(kategori.anggaranDasar)
+
     const totalTransaksi = await prisma.transaksi.aggregate({
       where: {
         kategoriId,
@@ -189,13 +215,13 @@ export async function getSisaSaldo(kategoriId: string, periodeId: string) {
       },
     })
 
-    const sisaSaldo = Number(kategori.anggaranDasar) - Number(totalTransaksi._sum.jumlah || 0)
+    const sisaSaldo = budgetAmount - Number(totalTransaksi._sum.jumlah || 0)
 
     return {
       success: true,
       data: {
         sisaSaldo,
-        anggaranDasar: Number(kategori.anggaranDasar),
+        anggaranDasar: budgetAmount,
         totalTransaksi: Number(totalTransaksi._sum.jumlah || 0),
       },
     }

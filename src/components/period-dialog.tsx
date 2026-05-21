@@ -153,11 +153,18 @@ export function PeriodDialog() {
                 {templates.map((template) => {
                   const isSelected = selectedTemplate === template.type
                   return (
-                    <button
+                    <div
                       key={template.type}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => handleTemplateSelect(template.type)}
-                      className={`p-4 rounded-lg border-2 text-left transition-all ${
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleTemplateSelect(template.type)
+                        }
+                      }}
+                      className={`p-4 rounded-lg border-2 text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 select-none ${
                         isSelected
                           ? 'border-primary bg-primary/5'
                           : 'border-border hover:border-primary/50'
@@ -184,7 +191,7 @@ export function PeriodDialog() {
                           Quick Create
                         </Button>
                       )}
-                    </button>
+                    </div>
                   )
                 })}
               </div>
