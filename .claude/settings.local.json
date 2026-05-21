@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma *)",
+      "Bash(npm run *)",
+      "Bash(node test-db.js)",
+      "Bash(node test-periode.js)",
+      "Bash(curl -s \"http://localhost:3000/periode/cmpevih8x0007q0ttosli4rkq\")",
+      "Bash(mv page.tsx page-original.tsx)",
+      "Bash(mv page-test.tsx page.tsx)",
+      "Bash(taskkill /F /PID 12824 /T)",
+      "Bash(taskkill /PID 12824)",
+      "Bash(taskkill *)",
+      "Bash(curl -s \"http://localhost:3001/periode/cmpevih8x0007q0ttosli4rkq\")",
+      "Bash(node test-simple.js)"
+    ]
+  }
+}

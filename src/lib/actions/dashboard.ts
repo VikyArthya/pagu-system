@@ -15,6 +15,13 @@ export async function getDashboardData() {
           gte: today,
         },
       },
+      include: {
+        transaksi: {
+          include: {
+            kategori: true,
+          },
+        },
+      },
     })
 
     // Jika tidak ada periode aktif, buat periode baru
@@ -57,6 +64,13 @@ export async function getDashboardData() {
           tanggalMulai: startDate,
           tanggalAkhir: endDate,
           isActive: true,
+        },
+        include: {
+          transaksi: {
+            include: {
+              kategori: true,
+            },
+          },
         },
       })
     }
