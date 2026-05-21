@@ -9,12 +9,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import Link from 'next/link'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
-export default async function PeriodeDetailPage({ params }: PageProps) {
+export default async function PeriodeDetailPage(props: PageProps) {
+  const params = await props.params
+
   // Validate id parameter
   if (!params?.id) {
     notFound()
