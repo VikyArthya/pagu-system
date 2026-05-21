@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ChevronDown, Calendar, Check, TrendingUp } from 'lucide-react'
@@ -48,6 +49,9 @@ export function PeriodSwitcher({
   const [selectedPeriode, setSelectedPeriode] = useState<PeriodeData | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   useEffect(() => {
     async function loadPeriode() {
       setLoading(true)
@@ -79,6 +83,12 @@ export function PeriodSwitcher({
   const handlePeriodSelect = (period: PeriodeData) => {
     setSelectedPeriode(period)
     setIsOpen(false)
+
+    // Update URL query parameter
+    const params = new URLSearchParams(searchParams?.toString() || '')
+    params.set('periodeId', period.id)
+    router.push(`/?${params.toString()}`)
+
     onPeriodChange?.(period)
   }
 

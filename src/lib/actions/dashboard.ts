@@ -2,27 +2,44 @@
 
 import { prisma } from '@/lib/prisma'
 
-export async function getDashboardData() {
+export async function getDashboardData(periodeId?: string) {
   try {
-    // Ambil periode aktif
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    let periode = await prisma.periodeAnggaran.findFirst({
-      where: {
-        isActive: true,
-        tanggalAkhir: {
-          gte: today,
-        },
-      },
-      include: {
-        transaksi: {
-          include: {
-            kategori: true,
+    let periode = null
+
+    if (periodeId) {
+      periode = await prisma.periodeAnggaran.findUnique({
+        where: { id: periodeId },
+        include: {
+          transaksi: {
+            include: {
+              kategori: true,
+            },
           },
         },
-      },
-    })
+      })
+    }
+
+    if (!periode) {
+      // Ambil periode aktif
+      periode = await prisma.periodeAnggaran.findFirst({
+        where: {
+          isActive: true,
+          tanggalAkhir: {
+            gte: today,
+          },
+        },
+        include: {
+          transaksi: {
+            include: {
+              kategori: true,
+            },
+          },
+        },
+      })
+    }
 
     // Jika tidak ada periode aktif, buat periode baru
     if (!periode) {

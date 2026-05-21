@@ -86,6 +86,35 @@ export async function createTransaksi(data: {
   periodeId: string
 }) {
   try {
+    // Validasi: Cek apakah tanggal berada dalam rentang periode
+    const periode = await prisma.periodeAnggaran.findUnique({
+      where: { id: data.periodeId },
+    })
+
+    if (!periode) {
+      return { success: false, error: 'Periode tidak ditemukan' }
+    }
+
+    const start = new Date(periode.tanggalMulai)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(periode.tanggalAkhir)
+    end.setHours(23, 59, 59, 999)
+    
+    const txDate = new Date(data.tanggal)
+    if (txDate < start || txDate > end) {
+      const formatDateLocal = (date: Date) => {
+        return new Intl.DateTimeFormat('id-ID', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+        }).format(date)
+      }
+      return {
+        success: false,
+        error: `Tanggal transaksi harus berada dalam rentang periode: ${formatDateLocal(periode.tanggalMulai)} - ${formatDateLocal(periode.tanggalAkhir)}`
+      }
+    }
+
     // Validasi: Cek sisa saldo sebelum membuat transaksi
     const kategori = await prisma.kategoriPagu.findUnique({
       where: { id: data.kategoriId },
@@ -161,6 +190,37 @@ export async function updateTransaksi(
   }
 ) {
   try {
+    const existingTx = await prisma.transaksi.findUnique({
+      where: { id },
+      include: { periode: true },
+    })
+
+    if (!existingTx) {
+      return { success: false, error: 'Transaksi tidak ditemukan' }
+    }
+
+    if (data.tanggal) {
+      const start = new Date(existingTx.periode.tanggalMulai)
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(existingTx.periode.tanggalAkhir)
+      end.setHours(23, 59, 59, 999)
+      
+      const txDate = new Date(data.tanggal)
+      if (txDate < start || txDate > end) {
+        const formatDateLocal = (date: Date) => {
+          return new Intl.DateTimeFormat('id-ID', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric',
+          }).format(date)
+        }
+        return {
+          success: false,
+          error: `Tanggal transaksi harus berada dalam rentang periode: ${formatDateLocal(existingTx.periode.tanggalMulai)} - ${formatDateLocal(existingTx.periode.tanggalAkhir)}`
+        }
+      }
+    }
+
     const transaksi = await prisma.transaksi.update({
       where: { id },
       data: {

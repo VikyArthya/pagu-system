@@ -15,9 +15,16 @@ interface KategoriOption {
 interface TransaksiDialogProps {
   kategori: KategoriOption[]
   periodeId: string
+  tanggalMulai?: Date | string
+  tanggalAkhir?: Date | string
 }
 
-export function TransaksiDialog({ kategori, periodeId }: TransaksiDialogProps) {
+export function TransaksiDialog({ 
+  kategori, 
+  periodeId, 
+  tanggalMulai, 
+  tanggalAkhir 
+}: TransaksiDialogProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
@@ -31,6 +38,8 @@ export function TransaksiDialog({ kategori, periodeId }: TransaksiDialogProps) {
         onClose={() => setIsOpen(false)}
         kategori={kategori}
         periodeId={periodeId}
+        tanggalMulai={tanggalMulai}
+        tanggalAkhir={tanggalAkhir}
         onSuccess={() => {
           setIsOpen(false)
           window.location.reload()

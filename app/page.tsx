@@ -18,8 +18,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import Link from 'next/link'
 
-export default async function Home() {
-  const dashboardData = await getDashboardData()
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
+
+export default async function Home(props: {
+  searchParams: SearchParams
+}) {
+  const searchParams = await props.searchParams
+  const periodeId = typeof searchParams.periodeId === 'string' ? searchParams.periodeId : undefined
+  const dashboardData = await getDashboardData(periodeId)
 
   if (!dashboardData.success || !dashboardData.data) {
     return (
@@ -85,6 +91,8 @@ export default async function Home() {
             <TransaksiDialog
               kategori={kategori}
               periodeId={periode.id}
+              tanggalMulai={periode.tanggalMulai}
+              tanggalAkhir={periode.tanggalAkhir}
             />
           </div>
         </div>
