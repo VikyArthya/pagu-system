@@ -166,7 +166,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "D:\\File Viky\\Projek Mandiri\\pagu-system\\src\\generated\\client",
+      "value": "/var/www/html/pagu-system/src/generated/client",
       "fromEnvVar": null
     },
     "config": {
@@ -175,16 +175,16 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "windows",
+        "value": "debian-openssl-3.0.x",
         "native": true
       }
     ],
     "previewFeatures": [],
-    "sourceFilePath": "D:\\File Viky\\Projek Mandiri\\pagu-system\\prisma\\schema.prisma",
+    "sourceFilePath": "/var/www/html/pagu-system/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
-    "rootEnvPath": "../../../.env",
+    "rootEnvPath": null,
     "schemaEnvPath": "../../../.env"
   },
   "relativePath": "../../../prisma",
@@ -194,7 +194,6 @@ const config = {
     "db"
   ],
   "activeProvider": "postgresql",
-  "postinstall": false,
   "inlineDatasources": {
     "db": {
       "url": {
